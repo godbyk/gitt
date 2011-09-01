@@ -145,6 +145,7 @@ def mung(data, IMAGE_BLOCK="", base=False):
 		if base == False:
 			code = i[1].replace("\n", "<br/>\n")
 			bolded = re.findall("(.*?@.*?:.*?\$.*?<br>)\n", code)
+			code = code.replace(' ', '&nbsp;')
 
 			tb = []
 
@@ -159,6 +160,7 @@ def mung(data, IMAGE_BLOCK="", base=False):
 			ddta = ""
 			code = i[1].split("\n")
 			for line in code:
+				line = line.replace(' ', '&nbsp;')
 				ddta += "<code>" + line + "</code><br/>\n"
 			data = data.replace(i[0], '<br><div id="codeblock">' + ddta.replace(" ", "&nbsp;") + "</div>")
 
