@@ -1,0 +1,1323 @@
+% chap8.tex - Week 8
+\cleardoublepage
+%\phantomsection
+\chapter{Week 8}
+\section{Day 1 - ``Give a man a patch''}
+\subsection{Collaborating with outsiders}
+We have spoken at great length now about rebasing and have seen that it is a very very powerful tool.
+It can form part of your workflow in your development cycle.
+However, always heed that warning that should send alarm bells ringing in the back of your mind about rebasing.
+Rebasing changes the past. Rebasing changes history.
+As such, it should be used a) with caution, and b) only by people who understand exactly what they are doing.
+
+We are going to leave rebasing for a while now, take a quick look at a feature you really should know about
+and then focus on some of the more advanced features of Git.
+The following situation occurs fairly regularly for some people.
+
+\begin{trenches}
+John was stroking his chin and looking pensively out of the window when Simon approached his desk.
+The manager hadn't seen him yet and Simon instinctively swayed a little back and forth, try to make himself known in as subtle a way as possible.
+Klaus, who was watching from the corner of his eye took a more direct approach.
+He took the out of date org chart down from the office divider, screwed it up into a ball and launched it at John's head.
+It struck the manager squarely in the jaw causing him to almost tip from his awkwardly balanced chair.
+
+John noticed Simon standing there and looked a little surprised.
+He then noticed Klaus and in an instant understood the chain of events that had just taken place.
+``Sorry Simon,'' started John, ``I've been trying to figure out a problem all morning.''
+
+``It's no problem.''  Simon pulled up a chair and sat down. ``I was wondering if you had a few minutes to discuss Luigi?''
+
+\thoughtbreak
+
+``Well as Luigi is a contractor, he's not going to get access to our repository here to perform commits directly.
+And he doesn't have the capability, nor do I really want him, making our code available on the internet.
+But he does have a clone of our repository from last week.'' John understood the problem.
+
+``Right!''
+
+``Have you heard of patching in Git?'' asked John.
+
+Simon looked at his shoes, ``Can't say I have John, sorry.''  
+
+John smiled, ``No worrys. What we can do is get Luigi to generate a patch of his changes.
+We can then take that patch and apply it to our codebase.  Luigi can then just reset his clone when he comes into the office.''
+Simon nodded as John continued, ``Go and ask Martha about it.  I think she's pretty hot on these types of things.''
+
+Klaus giggled, ``Think she's hot eh John?''
+
+The paper was returned.
+
+\end{trenches}
+
+\index{patching!process}It is a good question though. Sometimes you may have a repository that is either publically available, or made available to a group of people.
+You do not necessarily want to set up a remote tracking branch and pull changes in from every single contributor.
+There are two primary reasons for this;
+\begin{enumerate}
+\item There are a large number of people submitting small changes to the code.
+\item There are difficulties in communicating between the two repositories either for security or general reasons.
+\end{enumerate}
+
+In these cases we need another way to apply changes from one branch into another.
+Many larger open source projects allow contributors to email in patches.
+Git does have some rather advanced ways of dealing with these types of scenarios.
+We are going to scratch the surface and look at using three commands \texttt{git apply}, \texttt{git format-patch} and \texttt{git am}.
+
+\index{patching!generating}First, let us find a way of generating a patch.
+Let us take the example we have currently in our repository.
+Imagine that the \textbf{develop} branch exists on another computer in a clone of our repository.
+At some point in time, someone cloned our repository.
+They have the HEAD of our repository at the same point as we do, but they have continued to do some development in a new branch called \textbf{develop}.
+Now they are ready to give those changes back.
+
+Firstly we are going to look at using the \texttt{git diff} tool to generate a patch file which we can apply.
+
+\begin{code}
+john@satsuki:~/coderepo$ git checkout develop
+Already on 'develop'
+john@satsuki:~/coderepo$ git diff master develop
+diff --git a/newfile2 b/newfile2
+index 3545c1d..ff59f55 100644
+--- a/newfile2
++++ b/newfile2
+@@ -1,2 +1,3 @@
+ Another new file
+ and a new awesome feature
++newer dev work
+diff --git a/newfile3 b/newfile3
+index 638113c..2e00739 100644
+--- a/newfile3
++++ b/newfile3
+@@ -1 +1,2 @@
+ These changes are in the origin
++new dev work
+john@satsuki:~/coderepo$
+\end{code}
+
+That will generate us a diff from the \texttt{develop} to the \texttt{master} branch.
+We could copy and paste that information from the terminal window into a file, but Linux offers us an easier way of doing this.
+
+\begin{code}
+john@satsuki:~/coderepo$ git diff master develop > our_patch.diff
+john@satsuki:~/coderepo$ cat our_patch.diff 
+diff --git a/newfile2 b/newfile2
+index 3545c1d..ff59f55 100644
+--- a/newfile2
++++ b/newfile2
+@@ -1,2 +1,3 @@
+ Another new file
+ and a new awesome feature
++newer dev work
+diff --git a/newfile3 b/newfile3
+index 638113c..2e00739 100644
+--- a/newfile3
++++ b/newfile3
+@@ -1 +1,2 @@
+ These changes are in the origin
++new dev work
+john@satsuki:~/coderepo$
+\end{code}
+
+\index{patching!applying}So we can see that the file itself has the information we are looking for.
+Now we can use the \indexgit{apply} tool to actually modify the files in \textbf{master} and bring in the changes that have happened in \textbf{develop}.
+
+\begin{code}
+john@satsuki:~/coderepo$ git checkout master
+Switched to branch 'master'
+john@satsuki:~/coderepo$ git apply our_patch.diff
+john@satsuki:~/coderepo$ git diff
+diff --git a/newfile2 b/newfile2
+index 3545c1d..ff59f55 100644
+--- a/newfile2
++++ b/newfile2
+@@ -1,2 +1,3 @@
+ Another new file
+ and a new awesome feature
++newer dev work
+diff --git a/newfile3 b/newfile3
+index 638113c..2e00739 100644
+--- a/newfile3
++++ b/newfile3
+@@ -1 +1,2 @@
+ These changes are in the origin
++new dev work
+john@satsuki:~/coderepo$ git commit -a -m 'Updated with patch'
+[master 81eee9f] Updated with patch
+ 2 files changed, 2 insertions(+), 0 deletions(-)
+john@satsuki:~/coderepo$ git diff develop master
+john@satsuki:~/coderepo$
+\end{code}
+
+Of course doing things this way means that we still have to commit our changes.
+Plus, all of the changes that we have made in the patch are committed in one block.
+Sure, we could split that using some of the techniques in the After Hours sections, but then we may not always be aware of what should be split where.
+
+\subsection{Can we have some order please?}
+There is another tool that can come to our rescue here.
+It is primarily used for working with \index{mbox} mailboxes, but it also has some other uses which we will describe here.
+Would it not be nice to be able to have each commit that we want to use as a patch in a separate patch file.
+The file \texttt{our\_patch.diff} above contained two commits worth of data.
+We have access to another tool in our fight against disparate systems.
+This is the \indexgit{format-patch} command.
+
+First we will undo the changes we made previously by resetting the \textbf{master} branch back to its older position and deleting the \texttt{our\_patch.diff} file.
+
+\begin{code}
+john@satsuki:~/coderepo$ git reflog show master -n 4
+81eee9f master@{0}: commit: Updated with patch
+f8d5100 master@{1}: commit: Finished new dev
+1968324 master@{2}: commit: Start new dev
+john@satsuki:~/coderepo$ git reset --hard f8d5100
+HEAD is now at f8d5100 Finished new dev
+john@satsuki:~/coderepo$ rm our_patch.diff
+john@satsuki:~/coderepo$
+\end{code}
+
+We used the \texttt{git reflog} command to show what the last four \textbf{master} HEAD values were.
+Then we reset the branch back to the point before the \texttt{git apply}.
+Finally we deleted the patch.
+\index{patching!multiple file generation}Now let us see how to use the \texttt{git format-patch} command to create multiple patch files.
+
+\begin{code}
+john@satsuki:~/coderepo$ git format-patch master..develop
+0001-Some-new-dev-work.patch
+0002-More-new-deving.patch
+john@satsuki:~/coderepo$
+\end{code}
+
+It would appear that the result of this command is that two files have been generated.
+Let us confirm our suspicions and \texttt{cat} the contents of them to ensure that they contain the data we expect.
+
+\begin{code}
+john@satsuki:~/coderepo$ cat 0001-Some-new-dev-work.patch 
+From af3c6d730a8632d99b5626a7c0e921d14af21f50 Mon Sep 17 00:00:00 2001
+From: John Haskins <john.haskins@tamagoyakiinc.koala>
+Date: Thu, 7 Jul 2011 19:01:59 +0100
+Subject: [PATCH 1/2] Some new dev work
+
+---
+ newfile3 |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/newfile3 b/newfile3
+index 638113c..2e00739 100644
+--- a/newfile3
++++ b/newfile3
+@@ -1 +1,2 @@
+ These changes are in the origin
++new dev work
+-- 
+1.7.4.1
+
+john@satsuki:~/coderepo$
+\end{code}
+
+Woah! Hold on a minute. This does not seem to be a normal diff file at all.
+In fact, that is absolutely right. This is a patch file and the two are not the same.
+The patch file contains much more information than the simple diff file.
+For a start we get information about which commit this patch came from, who created it, when and a subject.
+In fact this looks almost like an email.  In fact it is created to resemble a format that would be easily emailable.
+
+\index{patching!a range}We have specified a range of commits to the \texttt{git format-patch} command with the parameter \texttt{master..develop}.
+The format of that parameter should be familar from earlier chapters when we utilised it for commands like \texttt{git diff} and \texttt{git log}.
+We could now take those files, email them to someone else and they could apply them.
+Let us learn one more tool, and see how we would apply those patches when they had been received at the other end.
+
+\begin{code}
+john@satsuki:~/coderepo$ git am 0001-Some-new-dev-work.patch
+Applying: Some new dev work
+john@satsuki:~/coderepo$ git am 0002-More-new-deving.patch
+Applying: More new deving
+john@satsuki:~/coderepo$ git diff master..develop
+john@satsuki:~/coderepo$
+\end{code}
+
+Of course this is just a simple example case and in actual usage there may be cases where conflicts and other complications occur.
+Looking at a log output, we can see that the original dates and times of the commits are maintained and are not updated.
+We can ignore this if we wish and use the \texttt{--ignore-date} parameter to use the current date when committing the patch to the repository.
+
+\begin{code}
+john@satsuki:~/coderepo$ git log -n4
+commit 30900fe1b7e72411dabab8b02070f36e2431f704
+Author: John Haskins <john.haskins@tamagoyakiinc.koala>
+Date:   Thu Jul 7 19:02:15 2011 +0100
+
+    More new deving
+
+commit a8281fb589e36389cc8cb0da7ebee225b4d1adfc
+Author: John Haskins <john.haskins@tamagoyakiinc.koala>
+Date:   Thu Jul 7 19:01:59 2011 +0100
+
+    Some new dev work
+
+commit f8d5100142b43ffaba9bbd539ba4fd92af79bf0e
+Author: John Haskins <john.haskins@tamagoyakiinc.koala>
+Date:   Thu Jul 7 08:39:29 2011 +0100
+
+    Finished new dev
+
+commit 1968324ce2899883fca76bc25496bcf2b15e7011
+Author: John Haskins <john.haskins@tamagoyakiinc.koala>
+Date:   Thu Jul 7 08:39:07 2011 +0100
+
+    Start new dev
+john@satsuki:~/coderepo$
+\end{code}
+
+Interestingly if we use our alias for the log command we see something maybe a little unexpected.
+
+\begin{code}
+john@satsuki:~/coderepo$ git logg -n6
+* 30900fe (HEAD, master) More new deving
+* a8281fb Some new dev work
+| * aed985c (develop) More new deving
+| * af3c6d7 Some new dev work
+|/  
+* f8d5100 Finished new dev
+* 1968324 Start new dev
+john@satsuki:~/coderepo$ 
+\end{code}
+
+Notice that the branch \textbf{master} has not been simply fast forwarded to that of commit of \textbf{develop}.
+This is because we have not performed a merge, but in a sense we have manually made that changes to the files and created separate commits for them.
+In this way the commits \textbf{30900fe} and \textbf{a8281fb} are not the same as their \textbf{develop} counterparts.
+
+If you intend to use this workflow, it is worth spending some time reading the man page for \texttt{git am} and \texttt{git format-patch} as both of them hold valuable information regarding the customisation and handling of patches and emails.
+Tamagoyaki Inc. are not going to use this workflow often and so just applying a few patches here and there from contractors using the methods is prefectly acceptable to them.
+If you were a large open source establishment, or any company that accepts a large number of patches, you may want to take a closer look at how to work these.
+Now it is time to move on to some more advanced topics within Git, but first a little cleanup.
+
+\begin{code}
+john@satsuki:~/coderepo$ rm 0001-Some-new-dev-work.patch 
+john@satsuki:~/coderepo$ rm 0002-More-new-deving.patch 
+john@satsuki:~/coderepo$
+\end{code}
+
+\section{Day 2 - ``Looking for problems''}
+\subsection{A problem shared is a problem bisected}
+\index{bisecting}During most software development, bugs are introduced.
+Sometimes these bugs are fixed immediately and sometimes they sit there in the code festering away for months on end until someone tests a specific case.
+Of course it is always best to have test suites and run them regularly against the code base, but on occasions either the test case itself has a bug,
+or the test case is written in such a way that a particular bug would never present itself.
+Tamagoyaki Inc. have a fairly rigorous testing procedure.
+Unfortunately it would seem that one particularly nasty bug has slipped through the cracks.
+Cue a difficult discussion.
+
+\begin{trenches}
+``But what I don't understand John, is that you now know what happened at every step in the process.
+How can something like this break and you not know about it?''
+As always Markus was getting snappy and as always John was having to bite his lip.
+
+``It's not a question about not knowing about it,'' begain John, ``The difficulty is knowing what change introduced the problem.
+We are on such a rapid development schedule that too many things are changing at once.''
+
+``Well, this is one of the reasons you guys have spent the last two months getting this version control system running.''
+Markus got up and opened the door.  ``I suggest you fix it.''
+
+\thoughtbreak
+
+``Markus is blaming us for introducing a bug?'' Rob was pretty shocked as he and Simon chatted at the water cooler.
+
+``More like, Markus believed that a version control system was going to solve all of our problems,'' replied Simon.
+
+Rob squinted his face up as a car drove into the buildings car park, showering the room with reflected sunlight.
+He shielded his eyes. ``You know I heard there was a tool in Git for helping to find bugs.
+Think I may take a look over lunch, you know, be a real hero.''
+
+They both chuckled.
+\end{trenches}
+
+It is true that Git does have a very powerful tool for helping to detect revisions that introduced bugs into the system.
+The tool is called \indexgit{bisect} and it is used to successively checkout revisions from the repository,
+check them to see if the bug is present and then use that information to determine the revision that is most likely to have introduced the bug.
+
+\index{bisecting!simple}Let us assume that the bug in our repository is a fairly simple one.
+For some bizarre reason our codebase is broken unless the word \texttt{Addition} is present in one of the files.
+If we run a simple Linux \texttt{grep} command across the files, we can see that the word we are after is not there.
+However, if we go back to tag \textbf{v1.0a} and run the same command, we can see that the word is there.
+
+\begin{code}
+john@satsuki:~/coderepo$ grep "Addition" *
+john@satsuki:~/coderepo$ 
+john@satsuki:~/coderepo$ git checkout v1.0a 
+Note: checking out 'v1.0a'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by performing another checkout.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -b with the checkout command again. Example:
+
+  git checkout -b new_branch_name
+
+HEAD is now at a022d4d... Messed with a few files
+john@satsuki:~/coderepo$ grep "Addition" *
+my_third_committed_file:Addition to the line
+john@satsuki:~/coderepo$ 
+\end{code}
+
+Notice the warning about checking out a non-branch.
+This is perfectly normal and should not worry you but please be aware that it is obviously best to have a clean working directory before starting any type of \texttt{bisect} commands.
+We can see that the string we are looking for is present in the file called \texttt{my\_third\_committed\_file}.
+As our repository is very small, it would not take us long to go through and check each revision to see when this string was deleted.
+In fact we have other tools available to search for the adding and removal of strings.
+For now let us assume that the \emph{bug} is more complicated than this.
+
+Let us go back to the facts.
+\index{bisecting!set good point}\index{bisecting!set bad point}We know that the repository was \textbf{good} at tag \textbf{v1.0a}.
+We also know that the repository is bad in its current state.
+By feeding these details to the \texttt{git bisect} command, we can begin a search for the bug.
+What will happen at each stage is that Git will checkout a revision that it wants us to test and we tell Git if we think that revision is good or bad.
+
+\begin{code}
+john@satsuki:~/coderepo$ git bisect start
+Already on 'master'
+john@satsuki:~/coderepo$ git bisect good v1.0a
+john@satsuki:~/coderepo$ git bisect bad master
+Bisecting: 9 revisions left to test after this (roughly 3 steps)
+[ed2301ba223a63a5a930b536a043444e019460a7] Removed third file
+john@satsuki:~/coderepo$
+\end{code}
+
+So we invoke the tool by running \texttt{git bisect start}.
+After this we tell Git the things that we know. It was good at \textbf{v1.0a}, \texttt{git bisect good v1.0a}.
+However, it was bad at \textbf{master}, our current revision, \texttt{git bisect bad master}.
+After this, Git checks out revision \textbf{ed2301b} and tells us that there are \texttt{9} revisions between the two points and that it should take only \texttt{3} more steps to complete.
+Now we run our test again.
+
+\begin{code}
+john@satsuki:~/coderepo$ grep "Addition" *
+john@satsuki:~/coderepo$
+\end{code}
+
+\index{bisecting!marking result}As we have no result here, this would be classed as a bad revision and so we mark it as so.
+
+\begin{code}
+john@satsuki:~/coderepo$ git bisect bad
+Bisecting: 3 revisions left to test after this (roughly 2 steps)
+[9710177657ae00665ca8f8027b17314346a5b1c4] Added another file
+john@satsuki:~/coderepo$
+\end{code}
+
+Git now presents us with a new choice and you can see that the number of revisions left to check has decreased dramatically from \texttt{9} to \texttt{3}.
+We continue marking our revisions as good and bad.
+
+\begin{code}
+john@satsuki:~/coderepo$ grep "Addition" *
+my_third_committed_file:Addition to the line
+john@satsuki:~/coderepo$ git bisect good
+Bisecting: 2 revisions left to test after this (roughly 1 step)
+[cfbecabb031696a217b77b0e1285f2d5fc2ea2a3] Fantastic new feature
+john@satsuki:~/coderepo$ grep "Addition" *
+my_third_committed_file:Addition to the line
+john@satsuki:~/coderepo$ git bisect good
+Bisecting: 0 revisions left to test after this (roughly 1 step)
+[b119573f4508514c55e1c4e3bebec0ab3667d071] Merge branch 'wonderful'
+john@satsuki:~/coderepo$ grep "Addition" *
+my_third_committed_file:Addition to the line
+john@satsuki:~/coderepo$ git bisect good
+ed2301ba223a63a5a930b536a043444e019460a7 is the first bad commit
+commit ed2301ba223a63a5a930b536a043444e019460a7
+Author: John Haskins <john.haskins@tamagoyakiinc.koala>
+Date:   Fri Apr 1 07:37:34 2011 +0100
+
+    Removed third file
+
+:100644 000000 68365cc0e5909dc366d31febf5ba94a3268751c6 0000000000000000000000000000000000000000 D	my_third_committed_file
+john@satsuki:~/coderepo$ 
+\end{code}
+
+Oh! Something different.  Git has actually finished the bisect and has suggested to us that this commit was responsible for introducing the bug in our code.
+If we look at the comment it was in this revision that we removed a particular file.
+This file was the one that contained our special \texttt{Addition} string.
+Git was right! We screwed up then.  At this point we can go back to our \textbf{master} branch and decide what to do about it.
+
+\begin{code}
+john@satsuki:~/coderepo$ git branch -v
+* (no branch) b119573 Merge branch 'wonderful'
+  develop     aed985c More new deving
+  master      30900fe More new deving
+  wonderful   4d91aab Updated another file again
+  zaney       7cc32db Made another awesome change
+john@satsuki:~/coderepo$ git checkout master
+Previous HEAD position was b119573... Merge branch 'wonderful'
+Switched to branch 'master'
+john@satsuki:~/coderepo$
+\end{code}
+
+Notice that at the end of the bisect, Git does not return us to the master branch.
+We are left in the last tested checked out revision.
+
+\subsection{Automating the process}
+\index{bisecting!automation}So bisecting is a very powerful way of quickly and efficiently finding the point at which bugs were introduced or \index{regression testing}regression testing.
+Git was spot on when it suggested that that revision was the one responsible for the mistake.
+Sometimes you may not be able to test a revision that Git checks out for you for other reasons.
+In this case you can always run \texttt{git bisect skip} to skip that revision.
+It is all very well being able to run this at each revision Git asks us to but to be honest, if you have 30-40 steps to test and you have to compile code to see if the bug is present it can get a little bit boring.
+
+Git has a way of allowing us to test automatically.
+The example we are going to use is obviously based on a Linux environment, but if you are a developer on a Windows platform, you should have no trouble understanding what is happening here.
+We are going to create a small shell script that will automatically run our grep test.
+If the string is found we will exit with a status code of \texttt{0}, indicating that it was successful and if
+the string is not found, we will exit with a status code of \texttt{123}, indicating that the test was unsuccessful.
+
+Git will use these status codes and interpret a code of \texttt{0} as \textbf{good} and a code of \texttt{123} as \textbf{bad}.
+Below is a copy of our shell script which we have saved as \texttt{test.sh} and have given relevant permissions to allow it to run etc.
+Notice we have had to exclude our \texttt{test.sh} file from the test, else the string \texttt{Addition} would have been found there.
+
+\begin{code}
+john@satsuki:~/coderepo$ cat test.sh 
+#!/bin/bash
+
+if grep -q Addition * --exclude=test.sh
+  then echo "Good"
+  exit 0
+else 
+  echo "Bad"
+  exit 123
+fi
+john@satsuki:~/coderepo$ 
+\end{code}
+
+Now we invoke \texttt{git bisect} slightly differently by asking it to start and itterate over the revisions \texttt{master} to \texttt{v1.0a}.
+At this point we have not told Git anything about which revisions are good or bad.
+
+\begin{code}
+john@satsuki:~/coderepo$ git bisect start master v1.0a
+Bisecting: 9 revisions left to test after this (roughly 3 steps)
+[ed2301ba223a63a5a930b536a043444e019460a7] Removed third file
+john@satsuki:~/coderepo$
+\end{code}
+
+Now we ask Git to continue testing, but to run our script at each iteration to determine the success or failure of each checked out revision.
+
+\begin{code}
+john@satsuki:~/coderepo$ git bisect run sh ./test.sh
+running sh ./test.sh
+Bad
+Bisecting: 3 revisions left to test after this (roughly 2 steps)
+[9710177657ae00665ca8f8027b17314346a5b1c4] Added another file
+running sh ./test.sh
+Good
+Bisecting: 2 revisions left to test after this (roughly 1 step)
+[cfbecabb031696a217b77b0e1285f2d5fc2ea2a3] Fantastic new feature
+running sh ./test.sh
+Good
+Bisecting: 0 revisions left to test after this (roughly 1 step)
+[b119573f4508514c55e1c4e3bebec0ab3667d071] Merge branch 'wonderful'
+running sh ./test.sh
+Good
+ed2301ba223a63a5a930b536a043444e019460a7 is the first bad commit
+commit ed2301ba223a63a5a930b536a043444e019460a7
+Author: John Haskins <john.haskins@tamagoyakiinc.koala>
+Date:   Fri Apr 1 07:37:34 2011 +0100
+
+    Removed third file
+
+:100644 000000 68365cc0e5909dc366d31febf5ba94a3268751c6 0000000000000000000000000000000000000000 D	my_third_committed_file
+bisect run success
+john@satsuki:~/coderepo$ 
+\end{code}
+
+The parameters after the \texttt{git bisect run} tell Git which command we wish to run at each stage.
+In our case it is \texttt{sh ./test.sh}.
+You can see Git invoking our \texttt{test.sh} script in each case, and the result of our script, either \texttt{Good} or \texttt{Bad} depending on which was echoed from the result of the grep test.
+Git has arrived at exactly the same result, but we have had to do nothing other than write a small script.
+For larger tests, this would have saved us a large amount of work.
+
+\begin{trenches}
+``Simon could I have a word?'' It was Rob and he wasn't looking happy.
+
+Simon turned to him and grinned, ``Sure buddy what's up?''  His face dropped when he saw Rob's expression.
+
+``I think we'd better go grab the meeting room.''
+
+Simon looked confused.
+
+``I used the bisect tool to find the bug.  But you're not gonna like what I found.''
+
+\thoughtbreak
+
+``Simon how could you have done that?'' John was asking the questions and they were coming thick and fast.
+``I mean changing the API key for the web sevice whilst developing was not a great idea to start with, but committing that to the repository was rediculous.''
+Simon sat there with his head in his hands.
+``You know how secret that API key is right?'' Simon nodded.
+``Simon we were supposed to be releasing this repository publically in a few weeks but now that the API is in there we can't do that.''
+
+``John I'm really sorry OK.'' Simon was kicking himself for his mistake.
+
+John sighed, he had been really angry to begin with but now he was calming down,
+``It's OK Simon, we're all getting used to the repository and version control.  Do you think we can fix it?''
+\end{trenches}
+
+\section{Day 3 - ``Filtered repos''}
+\subsection{Looking at a repo with rose tinted glasses}
+\index{filtering}It does happen. Sometimes when people are under pressure, mistakes are made, just like earlier when we accidently deleted our branch from the repository.
+This time the mistake is a little more crucial but again it does happen and it sometimes goes a long time before it is noticed.
+
+\begin{trenches}
+``So it's been in there for how long?'' asked John.
+
+Simon looked pretty sheepish as he mouthed the words, ``Weeks.''
+
+John bit on the end of the pen in his hand.
+His teeth chewed into the plastic, deforming the blue lid.
+``Did you find a way of sorting it out yet?''
+
+``I think so. It's not ideal, but I think so.''
+\end{trenches}
+
+It would be useful if we could rewrite the history to remove the information that we wanted to.
+As it turns out there is a tool that we can use to do this.
+The \indexgit{filter-branch} allows us to run operations on a branch to rewrite its history.
+Hopefully you are already remembering about the care we need to take when rewriting history, but sometimes there is a real need to perform some of these operations.
+Let us take a look at a few examples to see how this can work.
+We are going to assume that our file \texttt{newfile1} contains some very sensitive information and we wish to remove it completely from the repository.
+
+\begin{code}
+john@satsuki:~/coderepo$ git checkout master
+Already on 'master'
+john@satsuki:~/coderepo$ ls -la
+total 40
+drwxr-xr-x  3 john john 4096 2011-07-27 19:54 .
+drwxr-xr-x 32 john john 4096 2011-07-27 19:00 ..
+-rw-r--r--  1 john john   35 2011-07-22 07:15 another_file
+-rw-r--r--  1 john john   25 2011-07-22 07:15 cont_dev
+drwxrwxr-x  9 john john 4096 2011-07-27 19:54 .git
+-rw-r--r--  1 john john   69 2011-07-27 19:54 newfile1
+-rw-r--r--  1 john john   58 2011-07-22 07:15 newfile2
+-rw-r--r--  1 john john   45 2011-07-22 07:15 newfile3
+-rw-r--r--  1 john john    8 2011-03-31 22:15 temp_file
+-rwxrwxr-x  1 john john  114 2011-07-21 21:17 test.sh
+john@satsuki:~/coderepo$ 
+\end{code}
+
+As you can see, currently we have \texttt{newfile1} in our tree.
+We can also use the \texttt{git log} tool to see each commit which has touched that path.
+
+\begin{code}
+john@satsuki:~/coderepo$ git log --pretty=oneline master -- newfile1
+9cb2af2a00fd2253060e6bf8cc6c377b3d55ecea Important Update
+d50ffb2fa536d869f2c4e89e8d6a48e0a29c5cc1 Merged in zaney
+a27d49ef11d9f0e66edbad8f6c7806510ad5b2be Made an awesome change
+cfbecabb031696a217b77b0e1285f2d5fc2ea2a3 Fantastic new feature
+55fb69f4ad26fdb6b90ac6f43431be40779962dd Added two new files
+john@satsuki:~/coderepo$
+\end{code}
+
+So there were five commits in the past which have touched that path.
+In our example we require the removal of this path from the entire history of the repository.
+As this is a destructive operation that works on the current branch, meaning it will rewrite our branch HEAD, we are first going to switch into a new branch.
+
+\begin{code}
+john@satsuki:~/coderepo$ git checkout -b remove_file
+Switched to a new branch 'remove_file'
+john@satsuki:~/coderepo$ 
+\end{code}
+
+\index{filtering!index}Now we need to run the \texttt{git filter-branch} tool.
+
+\begin{code}
+john@satsuki:~/coderepo$ git filter-branch --index-filter 'git rm --cached --ignore-unmatch newfile1' HEAD
+Rewrite 55fb69f4ad26fdb6b90ac6f43431be40779962dd (6/21)rm 'newfile1'
+Rewrite 9710177657ae00665ca8f8027b17314346a5b1c4 (7/21)rm 'newfile1'
+Rewrite 4ac92012609cf8ed2480aa5d7f807caf2545fe2f (8/21)rm 'newfile1'
+Rewrite cfbecabb031696a217b77b0e1285f2d5fc2ea2a3 (9/21)rm 'newfile1'
+Rewrite b119573f4508514c55e1c4e3bebec0ab3667d071 (10/21)rm 'newfile1'
+Rewrite ed2301ba223a63a5a930b536a043444e019460a7 (11/21)rm 'newfile1'
+Rewrite a27d49ef11d9f0e66edbad8f6c7806510ad5b2be (12/21)rm 'newfile1'
+Rewrite 7cc32dbf121f2afa8c40337db54bafb26de5b9c4 (13/21)rm 'newfile1'
+Rewrite d50ffb2fa536d869f2c4e89e8d6a48e0a29c5cc1 (14/21)rm 'newfile1'
+Rewrite 9cb2af2a00fd2253060e6bf8cc6c377b3d55ecea (15/21)rm 'newfile1'
+Rewrite 37950f861a3cc0868c65ee9571fc6c491aa689ea (16/21)rm 'newfile1'
+Rewrite 1c3206aac0fb012bfdaf5ff00e320b565bb89e7d (17/21)rm 'newfile1'
+Rewrite 1968324ce2899883fca76bc25496bcf2b15e7011 (18/21)rm 'newfile1'
+Rewrite f8d5100142b43ffaba9bbd539ba4fd92af79bf0e (19/21)rm 'newfile1'
+Rewrite a8281fb589e36389cc8cb0da7ebee225b4d1adfc (20/21)rm 'newfile1'
+Rewrite 30900fe1b7e72411dabab8b02070f36e2431f704 (21/21)rm 'newfile1'
+
+Ref 'refs/heads/remove_file' was rewritten
+john@satsuki:~/coderepo$
+\end{code}
+
+We have passed a few parameters to \texttt{git filter-branch} and we should take a few seconds to discuss this as the syntax may seem a little strange.
+Firstly we are invoking the \texttt{git filter-branch} tool, that should not be anything new at all.
+Next, we are passing three parameters to it.
+The first of these is the type of filter we wish to use.
+In our case we have used the \texttt{--index-filter} option.
+More information is available in the Git manual, but in a nutshell we have asked Git to work on the \emph{index} at each commit stage.
+\index{filtering!tree}There is another similar option called \texttt{--tree-filter}, however care must be taken to distinguish between the two as using \texttt{--tree-filter} checks out the commit at each point in history.
+This may not sound like a problem, until you discover that as well as checking each revision out, it also automatically adds any untracked files in the working tree and commits them.
+
+The next parameter is the actual command that we wish Git to perform on each revision.
+In this case we want to \texttt{git rm --cached --ignore-unmatch newfile1} each time.
+We have enclosed the command we wish to run inside quotes so that Git does not get confused with which parameters are part of the \texttt{filter-branch} and which are part of the \texttt{rm}.
+Using these options we have asked Git to work on just the \emph{index} and not to complain if it can not find the file to delete.
+
+Lastly we list the commit range we wish to filter.
+In this case we have specified the target revision as \texttt{HEAD}.
+Git will interpret this as meaning everything up to the \texttt{HEAD} revision.
+As such Git will be rewriting the entire history of the branch.
+
+Now if we list the files in the directory, we can see something important has happened.
+The file that we wanted removed, has gone and \texttt{newfile1} is no more.
+
+\begin{code}
+john@satsuki:~/coderepo$ ls -la
+total 36
+drwxr-xr-x  3 john john 4096 2011-07-27 19:53 .
+drwxr-xr-x 32 john john 4096 2011-07-27 19:00 ..
+-rw-r--r--  1 john john   35 2011-07-22 07:15 another_file
+-rw-r--r--  1 john john   25 2011-07-22 07:15 cont_dev
+drwxrwxr-x  9 john john 4096 2011-07-27 19:53 .git
+-rw-r--r--  1 john john   58 2011-07-22 07:15 newfile2
+-rw-r--r--  1 john john   45 2011-07-22 07:15 newfile3
+-rw-r--r--  1 john john    8 2011-03-31 22:15 temp_file
+-rwxrwxr-x  1 john john  114 2011-07-21 21:17 test.sh
+john@satsuki:~/coderepo$
+\end{code}
+
+Re-running the log command we ran earlier against our new branch confirms our operation.
+However checking out the \textbf{master} also confirms that the file is still present elsewhere.
+
+\begin{code}
+john@satsuki:~/coderepo$ git log --pretty=oneline remove_file -- newfile1
+john@satsuki:~/coderepo$ git checkout master
+Switched to branch 'master'
+john@satsuki:~/coderepo$ ls -la
+total 40
+drwxr-xr-x  3 john john 4096 2011-07-27 19:54 .
+drwxr-xr-x 32 john john 4096 2011-07-27 19:00 ..
+-rw-r--r--  1 john john   35 2011-07-22 07:15 another_file
+-rw-r--r--  1 john john   25 2011-07-22 07:15 cont_dev
+drwxrwxr-x  9 john john 4096 2011-07-27 19:54 .git
+-rw-r--r--  1 john john   69 2011-07-27 19:54 newfile1
+-rw-r--r--  1 john john   58 2011-07-22 07:15 newfile2
+-rw-r--r--  1 john john   45 2011-07-22 07:15 newfile3
+-rw-r--r--  1 john john    8 2011-03-31 22:15 temp_file
+-rwxrwxr-x  1 john john  114 2011-07-21 21:17 test.sh
+john@satsuki:~/coderepo$
+\end{code}
+
+It should be stressed at this point how destructive the \texttt{git filter-branch} command can be to your repository.
+The \textbf{master} and \textbf{remove\_file} branches have diverged from the point where \texttt{newfile1} was first introduced.
+Consequently all of our other branches, such as \textbf{zaney} and \textbf{wonderful} still refer to the \textbf{master} branch.
+We would also have to rewrite those branches too, but because of the rewriting of commit objects, we could lose the relationships between the branches and their ancestors.
+In short, though it is exceedingly powerful, this type of filtering can cause huge distress to other people working on the project.
+
+\begin{trenches}
+``So what do we do?'' asked John.
+``We can't push out the repo as it is because it contains the API key.''
+He massaged his forehead moving down to his eyebrows.
+``But we seem to be introducing a real headache if we filter the branch. Any suggestions?''
+
+``Well the project is going to be finished in a few weeks right?'' Simon was sitting at the end of the table.
+He was ashamed and was talking through a pair of hands deperately trying to conceal his identity.
+
+``Yeh, but what the hell has that got to do with it?'' snorted Klaus.
+
+``I'm just thinking that we leave the repo like it is until all development has finished,'' he paused to run his hands through his hair,
+``then we filter the branch just before we release it.''
+He looked over at John, ``At that point there shouldn't be any test or dev branches, and we can just get everyone to clone the repo if we need to do anything else.''
+
+John nodded.  ``You know Simon I think you may have just redeemed yourself.''
+\end{trenches}
+
+\begin{callout}{Note}{Since you've been gone}
+\index{filtering!purging}Even though we have rewritten our tree, the fact that another branch still has the file present means that our potentially senitive data still exists somewhere inside the repository.
+In order to truly get rid of the file we would need to not only remove the file from all branches, or delete the branches that contained the file,
+but also run a few more steps if we wanted to ensure the file was gone \emph{now}.
+Be aware that these steps are potentially very destructive to a repository.
+The best way to remove the file completely would be to remove ALL references to the file and then clone the repository.
+Git will not clone objects into a new repository if nothing references them.
+Alternatively if you absolutely must work on the current repository, you would need to do the following.
+\newline
+\newline
+Delete the \texttt{filter-branch} backup using \index{git commands!update-ref@\texttt{update-ref}}\texttt{git update-ref <refname> -d}.  (See the callout on \emph{More backups})
+\newline
+\newline
+Expire all reflogs with \texttt{git reflog expire --expire=now --all}
+\newline
+\newline
+Repack all of the pack files with \texttt{git repack -ad}\index{git commands!repack@\texttt{repack}}
+\newline
+\newline
+Prune all unreachable objects with \texttt{git prune}\index{git commands!prune@\texttt{prune}}
+\newline
+\newline
+As you can see some of these are quite scary procedures and so it is important that you understand all that you are doing before you do it.
+\end{callout}
+
+The idea being proposed here is only really viable because of Tamagoyaki's situation.
+The code is due to be finished soon and once that happens, the team have decided to push a rewritten branch into the public domain and to resync all of their development repositories to this new branch.
+It should be noted that the \texttt{filter-branch} tool can be used in other circumstances too.
+We are going to take a look at just one of these.
+However, let us first clean up our repository a little and move some things around.
+
+\begin{code}
+john@satsuki:~/coderepo$ mkdir tester
+john@satsuki:~/coderepo$ ls
+another_file  cont_dev  newfile1  newfile2  newfile3  temp_file  tester  test.sh
+john@satsuki:~/coderepo$ mv test.sh tester/
+john@satsuki:~/coderepo$ git mv newfile* tester
+john@satsuki:~/coderepo$ git add tester/test.sh
+john@satsuki:~/coderepo$ rm temp_file 
+john@satsuki:~/coderepo$ git status
+# On branch master
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	renamed:    newfile1 -> tester/newfile1
+#	renamed:    newfile2 -> tester/newfile2
+#	renamed:    newfile3 -> tester/newfile3
+#	new file:   tester/test.sh
+#
+john@satsuki:~/coderepo$ git commit -a -m 'Moved testing suite'
+[master f08ac57] Moved testing suite
+ 4 files changed, 9 insertions(+), 0 deletions(-)
+ rename newfile1 => tester/newfile1 (100%)
+ rename newfile2 => tester/newfile2 (100%)
+ rename newfile3 => tester/newfile3 (100%)
+ create mode 100755 tester/test.sh
+john@satsuki:~/coderepo$ 
+\end{code}
+
+We have reverted back to our \textbf{master} branch and in doing so have regained \texttt{newfile1}.
+After that, we deleted our rewritten branch and moved \texttt{test.sh} along with all of the \texttt{newfile}s into a new folder called \texttt{tester}.
+
+\section{Day 4 - ``Let's make a library''}
+\subsection{Splitting the atom}
+Sometimes, after a project has been running for a while certain components actually grow rather useful.
+When this happens, people often want to move it outside of the original project and maintain it as a separate library.
+Of course the easiest way to do this is to just copy and paste the files out of the main project and into a subdirectory.
+In doing this we would lose or disconnect all of the development history of that subproject up to this point.
+
+\index{filtering!sub-directory}Using the \texttt{git filter-branch} we can actually pull out a folder and retain all of its history.
+The methodology behind this is that we rewrite the history to a new branch, but we only pull across changes to a particular folder and we store those in the root of the branch.
+Let us see how this works with a quick example.
+Remember we created the \texttt{tester} folder?
+We are going to make a few commits to the files in this folder to give it some history.
+
+\begin{code}
+john@satsuki:~/coderepo$ echo "More development work" >> tester/newfile1
+john@satsuki:~/coderepo$ git commit -a -m 'Work on tester nf1'
+[master 1a4956b] Work on tester nf1
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+john@satsuki:~/coderepo$ echo "More dev work" >> tester/newfile2
+john@satsuki:~/coderepo$ git commit -a -m 'Work on tester nf2'
+[master 7156104] Work on tester nf2
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+john@satsuki:~/coderepo$ echo "Even more dev work" >> tester/newfile3
+john@satsuki:~/coderepo$ git commit -a -m 'Work on tester nf3'
+[master 1433223] Work on tester nf3
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+john@satsuki:~/coderepo$ 
+\end{code}
+
+Now we are going to split that off into a separate branch which we will then clone into a new Git repository.
+After we have copied the history of the \texttt{tester} folder to a new branch, see if you can run through in your head, the steps we would need to take to pull this branch into a new repository.
+
+\begin{code}
+john@satsuki:~/coderepo$ git checkout -b tester_split
+Switched to a new branch 'tester_split'
+john@satsuki:~/coderepo$ git filter-branch --subdirectory-filter tester
+Rewrite 1433223d9c8a8abc35410d12cf78128c318b6e42 (4/4)
+Ref 'refs/heads/tester_split' was rewritten
+john@satsuki:~/coderepo$ git branch
+  develop
+  master
+* tester_split
+  wonderful
+  zaney
+john@satsuki:~/coderepo$ ls
+newfile1  newfile2  newfile3  test.sh
+john@satsuki:~/coderepo$ git checkout master
+Switched to branch 'master'
+john@satsuki:~/coderepo$ ls
+another_file  cont_dev  tester
+john@satsuki:~/coderepo$ 
+\end{code}
+
+So now the directory has been split away from the original source code into a new branch, have a think about what steps you would take to bring this into an entirely new repository.
+
+\begin{callout}{Note}{More backups}
+\index{filtering!backup}Git likes to make things easy for you.
+You may not have noticed it before, but when using the \texttt{git filter-branch} tool to rewrite a branch, Git keeps a backup of the value of HEAD before you started rewriting your branch.
+This backup is kept in \texttt{refs/original/refs/heads/<branch\_name>}.
+This file will contain a commit ID which we can use to revert our branch back to its original state, if the filter does horribly wrong.
+\end{callout}
+
+\begin{trenches}
+``So John, I managed to split the Atom library out into a new branch like you said, but I have no idea how to pull this into a new repo.''
+Jack was finally feeling like he had gotten to grips with Git, but his latest task had left him feeling a little dejected.
+He idly stabbed at his leg with a pen whilst waiting for John to finish his tapping away.
+
+John lifted his keys from the keyboard and turned his chair.
+``You really can't think of a way to coopy what we have in one repo into another?''
+
+Suddenly it was like a light bulb had exploded with light inside Jack's skull.  "CLONES!" he shouted.
+\end{trenches}
+
+We actually have at least four methods we can use to do this.
+\begin{enumerate}
+\item Copy the data from one repo to another with copy and paste
+\item Clone our repository, delete all of the branches other than \textbf{tester\_split} and then rename it to \textbf{master}
+\item Initialise a new repository, setup a remote to the original and then fetch our \textbf{tester\_split} branch
+\item Create a bundle of the \textbf{tester\_split} and then clone from the bundle into a new repository
+\end{enumerate}
+
+The first of these will leave us with no history of development at all, so let us ignore it, as it is not what we require.
+The second of these is trivial and should require no explanation at all.
+We simply clone and then using the usual tools, we delete all unnecessary branches.
+However this first method does have its disadvantages, namely the fact that when we clone the repository, we take every single object from the source repository into the new one.
+Whilst this is generally not a problem it would mean that we would have to run some fairly aggressive garbage collection to remove all of these unwanted objects.
+This would happen natually over time as the objects aged and were no longer referenced, but it would result in a repository that was initially much larger than it needed to be.
+
+The other two methods deserve a little more consideration as they both perform much better in this respect.
+The third method you should be familiar enough with pervious material to be able to perform right now.
+However, using the fetch command as we have done so before would again pull in many more objects than we require.
+As such we are going to do a subtle twist to this command in the following output.
+
+\begin{code}
+john@satsuki:~/coderepo$ cd ../
+john@satsuki:~$ mkdir subrepo
+john@satsuki:~$ cd subrepo/
+john@satsuki:~/subrepo$ git init
+Initialized empty Git repository in /home/john/subrepo/.git/
+john@satsuki:~/subrepo$ git remote add source /home/john/coderepo
+john@satsuki:~/subrepo$ git fetch source +tester_split:master
+fatal: Refusing to fetch into current branch refs/heads/master of non-bare repository
+john@satsuki:~/subrepo$ fatal: The remote end hung up unexpectedly
+john@satsuki:~/subrepo$
+\end{code}
+
+\index{branching!fetch single branch}\index{fetching!single branch}What we have asked Git to do is to pull only the branch \textbf{tester\_split} from the remote we called \textbf{source} and place it into \textbf{master} locally.
+Think of the \texttt{+<branch>:<branch>} as \texttt{+<source>:<destination>} and all will make sense.
+As you can see Git is not too happy about our intentions here as it does not like overwriting the \textbf{master} branch of a non-bare repository.
+That is OK, we have another way around this.
+
+\begin{code}
+john@satsuki:~/subrepo$ git fetch source +tester_split:tmp
+remote: Counting objects: 15, done.
+remote: Compressing objects: 100% (14/14), done.
+remote: Total 15 (delta 3), reused 0 (delta 0)
+Unpacking objects: 100% (15/15), done.
+From /home/john/coderepo
+ * [new branch]      tester_split -> tmp
+john@satsuki:~/subrepo$ git branch -m tmp master
+john@satsuki:~/subrepo$
+\end{code}
+
+So we have almost deceived Git a little here, but I think we can live with ourselves.
+By first pulling the branch into a \textbf{tmp} branch, we were then allowed to rename it as \textbf{master}.
+Notice the number of objects required for this branch \texttt{15}.
+If you remember when we cloned our repository a few \emph{weeks} ago, this value was a lot higher than this.
+It was the subtle \texttt{+<source>:<destination>} which prevented us from pulling every last object from the source repository into our new slim \emph{sub}-repository.
+
+\begin{code}
+john@satsuki:~/subrepo$ ls
+john@satsuki:~/subrepo$ git checkout master
+Already on 'master'
+john@satsuki:~/subrepo$ ls
+newfile1  newfile2  newfile3  test.sh
+john@satsuki:~/subrepo$ 
+\end{code}
+
+Notice that there are no files in the repository until we have checked out.
+This is because all the fetch did was to \emph{fetch} the objects and place them in the repository object directory.
+It did not place anything in the working directory.
+If you remember this is same behaviour we saw with fetching before.
+So now we have a complete copy of our \texttt{tester} component of our repository from the source into a new repository.
+If we do a \texttt{git log}, we can see the history of the development.
+
+\begin{code}
+john@satsuki:~/subrepo$ git log --format=oneline
+590e0eb79bc5ba0bc09f611392e643f676b00a04 Work on tester nf3
+785b86d877d2a5c0679d98181a23d06ed2ba7652 Work on tester nf2
+1ff89f787438f081a0d74de2d26eb2d831c9c738 Work on tester nf1
+a5a0d9762dd4b50d8f3228e37b315f6056d5a034 Moved testing suite
+john@satsuki:~/subrepo$ 
+\end{code}
+
+Unfortunately since some of our development work on these files happened outside of this directory,
+this was lost when splitting and this is something to keep in mind should you ever perform this kind of operation.
+
+\subsection{Little bundles of joy}
+Git has so many ways to do things.
+\index{bundling}This is in part what makes it a little daunting for those just starting but after you have gained a little experience, you begin to understand just what is happening in the background.
+When this realisation hits, you are able to almost immediately think of at least two different ways of performing the same thing.
+There have been numerous examples throughout the book, where there have been multiple ways to complete the same task.
+Here we are going to look at just one more way that we can create a new repo from our \textbf{tester\_split} branch.
+
+The tool we are going to introduce here is \indexgit{bundle}.
+\index{bundling!creating}\index{bundling!cloning from}The \texttt{bundle} utility allows us to export a set of revisions and almost archive them to a file.
+This file then becomes a resource that can be updated and pulled or fetched from.
+This is especially useful if you have no physical connection between two computers and wish to sync some of the data from one to the other.
+Let us take a quick look at how we could use the bundle tool in this case.
+
+\begin{code}
+john@satsuki:~/coderepo$ git bundle create ../tester.bundle tester_split 
+Counting objects: 15, done.
+Compressing objects: 100% (14/14), done.
+Writing objects: 100% (15/15), 1.50 KiB, done.
+Total 15 (delta 3), reused 0 (delta 0)
+john@satsuki:~/coderepo$ cd ..
+john@satsuki:~$ git clone tester.bundle subrepo-b
+Cloning into subrepo-b...
+warning: remote HEAD refers to nonexistent ref, unable to checkout.
+
+john@satsuki:~$
+\end{code}
+
+So the problem here is that when we created the bundle, the branch which was checked out at the time was \textbf{master}.
+The objects we pulled from the source repository and placed in the bundle were all from the \textbf{tester\_split} branch.
+As such the HEAD of the working tree at the time of the bundle creation, pointed to an object in the \textbf{master} branch.
+Obviously this object does not exist in our bundle and so Git complains.
+If we had checked out \textbf{tester\_split} before creating the bundle, there would have been no complaints.
+
+So all we have to do is to remap the HEAD of \textbf{master} to that of the HEAD of \textbf{tester\_split}.
+As you can see below, it seems as if there are no branches at all and when we try to checkout master it does not exist.
+What actually happened is that the objects were cloned into the repository, but as the object that the source HEAD pointed to was unavailable,
+no branch was created.
+With a litle \texttt{git reset} trickery, we can create our \textbf{master} branch in our new repository.
+
+\begin{code}
+john@satsuki:~$ cd subrepo-b/
+john@satsuki:~/subrepo-b$ git branch
+john@satsuki:~/subrepo-b$ git checkout master
+error: pathspec 'master' did not match any file(s) known to git.
+john@satsuki:~/subrepo-b$ git reset --hard origin/tester_split 
+HEAD is now at 590e0eb Work on tester nf3
+john@satsuki:~/subrepo-b$ git checkout master
+Already on 'master'
+john@satsuki:~/subrepo-b$ ls
+newfile1  newfile2  newfile3  test.sh
+john@satsuki:~/subrepo-b$ 
+\end{code}
+
+Now we have our repository complete as before.
+
+\begin{trenches}
+Martha and John were sitting together in the office.
+The rest of the team had left hours ago and it was getting really late.
+Martha broke the silence, ``So we've pulled the Atom library out,'' she giggled before continuing, ``but how the heck do we put it back in again?''
+
+``I'm really not sure said John,'' taking another swig of coffee before placing the mug back down on the desk.
+On the side was written the word GIT in large marker pen, a gift from Klaus.
+
+Martha sighed. ``It's getting pretty late John. I think I'm gonna head out.''
+
+``Yeh, I know what you mean,'' started John, ``I think I'll get going too.
+Thanks for the help Martha.''
+
+``Anytime John.''
+\end{trenches}
+
+\section{Day 5 - ``Shhh....we're in a library''}
+\subsection{Nuclear fusion}
+OK, so we are not quite at the stage of nuclear physics, but it would be nice to know how to bring our library back into our repository.
+Git offers a tool called \indexgit{submodule}.  This tool allows you to link a remote repositories branch and store it under a subdirectory of the project.
+It does have some nuances which must be learnt, but can be very useful.
+Let us add our testing suite from the \texttt{subrepo} repository into the directory called \texttt{tester} in our main \texttt{coderepo} repository.
+First we must remove our \texttt{tester} directory.
+
+\begin{code}
+john@satsuki:~/coderepo$ git checkout master 
+Already on 'master'
+john@satsuki:~/coderepo$ git rm tester/*
+rm 'tester/newfile1'
+rm 'tester/newfile2'
+rm 'tester/newfile3'
+rm 'tester/test.sh'
+john@satsuki:~/coderepo$ git commit -a -m 'Removed tester - will be replaced by submodule'
+[master 5698499] Removed tester - will be replaced by submodule
+ 4 files changed, 0 insertions(+), 20 deletions(-)
+ delete mode 100644 tester/newfile1
+ delete mode 100644 tester/newfile2
+ delete mode 100644 tester/newfile3
+ delete mode 100755 tester/test.sh
+john@satsuki:~/coderepo$ 
+\end{code}
+
+We need to define what a submodule actualy is.
+Submodules are tricky to understand and often people use them once and conclude that they are more trouble than they are worth.
+However, if you take some time to understand what a submodule really is, then they can be very useful to you.
+A submodule is the inclusion of a repositories branch at a specific commit.
+It is not intended to track the development of the upstream library or module, (see the callout box for an explanation of \emph{upstream}).
+
+\begin{callout}{Terminology}{Upstream}
+\emph{Upstream} refers to the source of a project which may have one or more derivatives which are also distributed.
+Take the package that was used to build this book for example, \LaTeX.
+\LaTeX is distributed by the people who developed it as open source software, but it is also included with a number of Linux distributions.
+The location of the software created by the \LaTeX developers is referred to as the \emph{upstream} project.
+The projects which include it within their own are what is referred to as \emph{downstream}.
+Think of it like a river which flows from the source further \emph{upstream}.
+\end{callout}
+
+As we will see, though it can be a little longwinded to actually change the version of the code that the submodule refers to,
+it actually makes a lot of sense to handle them in this way.
+If the code in the submodule is being included in your repository, you do not want to run the risk of a change upstream resulting in a broken build for your project.
+This is why submodules always refer to a single commit.
+
+Let us go ahead, create a submodule and then discuss the steps we have taken.
+
+\begin{code}
+john@satsuki:~/coderepo$ git submodule add /home/john/subrepo tester
+Cloning into tester...
+done.
+john@satsuki:~/coderepo$ git status
+# On branch master
+# Changes to be committed:
+#   (use "git reset HEAD <file>..." to unstage)
+#
+#	new file:   .gitmodules
+#	new file:   tester
+#
+john@satsuki:~/coderepo$ git commit -a -m 'Added submodule (subrepo)'
+[master 2aadc11] Added submodule (subrepo)
+ 2 files changed, 4 insertions(+), 0 deletions(-)
+ create mode 100644 .gitmodules
+ create mode 160000 tester
+john@satsuki:~/coderepo/tester$ 
+\end{code}
+
+As you can see we had to perform a number of steps before we obtained the source for the \textbf{subrepo} library in our \texttt{tester} directory.
+We had to begin by using \indexgit{submodule} to add the upstream repository.
+The upstream repository is really just like any remote repository we have been using, but we will use the terminology \emph{upstream} to make a distinction.
+The command \texttt{git submodule add /home/john/subrepo tester} creates a special file in the root of our project called \texttt{.gitmodules},
+plus it clones the upstream repository into the folder we specified, in this case \texttt{tester}.
+
+Notice that when we ran \texttt{git status}, we saw two new entries, one for \texttt{.gitmodules} and one for \texttt{tester}.
+Next we have to commit those entries using the standard \texttt{git commit} command.
+When we do, we see that there is a code in front of \texttt{tester} which is special and tells Git to treat this directory as a submodule.
+
+Though the submodule has now been added, it has not yet been initialised.
+To do this, we run our next set of steps.
+
+\begin{code}
+john@satsuki:~/coderepo$ git submodule init
+Submodule 'tester' (/home/john/subrepo) registered for path 'tester'
+john@satsuki:~/coderepo$ git submodule update
+john@satsuki:~/coderepo$
+\end{code}
+
+Now our submodule has been added and initialised.
+The update command is used to ensure that the directory \texttt{tester} contains the version of the submodule that we committed earlier.
+
+\begin{code}
+john@satsuki:~/coderepo$ cd tester/
+john@satsuki:~/coderepo/tester$ ls
+newfile1  newfile2  newfile3  test.sh
+john@satsuki:~/coderepo/tester$ git log --format=oneline
+590e0eb79bc5ba0bc09f611392e643f676b00a04 Work on tester nf3
+785b86d877d2a5c0679d98181a23d06ed2ba7652 Work on tester nf2
+1ff89f787438f081a0d74de2d26eb2d831c9c738 Work on tester nf1
+a5a0d9762dd4b50d8f3228e37b315f6056d5a034 Moved testing suite
+john@satsuki:~/coderepo$
+\end{code}
+
+Looking in the directory we can see two things.
+The first, is that the files present in the \textbf{subrepo} upstream project have now been added.
+The second, may appear a little suprising to begin with.
+The \texttt{git log} command actually shows a log for the upstream project, not for the local root project stored in \texttt{coderepo}.
+In all honesty, the submodule repository is actually just a clone of the upstream project, with a few subtle differences.
+
+The information about which upstream url to use for the project can be found in the \texttt{.gitmodules} which we committed earlier.
+Below is an example of what the file looks like in our current repository.
+
+\begin{code}
+john@satsuki:~/coderepo$ cat .gitmodules 
+[submodule "tester"]
+	path = tester
+	url = /home/john/subrepo
+john@satsuki:~/coderepo$ 
+\end{code}
+
+\subsection{Changes down the river}
+So what happens when we want to pull in changes from the upstream project?
+Well, you can make your submodule point to whatever point you like and stay there.
+As long as you commit your changes in the super project, Git will always allow you to return to that point using the \texttt{git submodule update} command.
+
+Let us take a look at how we could pull in some changes into our \texttt{tester} submodule.
+First, we are going to make a change to our upstream project.
+
+\begin{code}
+john@satsuki:~/coderepo$ cd ..
+john@satsuki:~$ cd subrepo
+john@satsuki:~/subrepo$ ls
+newfile1  newfile2  newfile3  test.sh
+john@satsuki:~/subrepo$ echo "Added a new function" > newfile4
+john@satsuki:~/subrepo$ git add newfile4
+john@satsuki:~/subrepo$ git commit -a -m 'Added a new library file'
+[master 94ad27e] Added a new library file
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+ create mode 100644 newfile4
+john@satsuki:~/subrepo$ cd ..
+john@satsuki:~/subrepo$
+\end{code}
+
+Now that we have a new version of the project, let us try to pull those changes into our superproject.
+
+\begin{code}
+john@satsuki:~$ cd coderepo
+john@satsuki:~/coderepo$ cd tester
+john@satsuki:~/coderepo/tester$ git status
+# On branch master
+nothing to commit (working directory clean)
+john@satsuki:~/coderepo/tester$ git fetch origin 
+remote: Counting objects: 4, done.
+remote: Compressing objects: 100% (2/2), done.
+remote: Total 3 (delta 1), reused 0 (delta 0)
+Unpacking objects: 100% (3/3), done.
+From /home/john/subrepo
+   590e0eb..94ad27e  master     -> origin/master
+john@satsuki:~/coderepo/tester$ git checkout master 
+Already on 'master'
+Your branch is behind 'origin/master' by 1 commit, and can be fast-forwarded.
+john@satsuki:~/coderepo/tester$
+\end{code}
+
+As you can see, we are told that our branch is currently one commit behind that of \textbf{origin/master}.
+If we want to update our \textbf{master} branch in the submodule, we need to \emph{pull} our changes in, just like a \textbf{real} Git repository.
+
+\begin{code}
+john@satsuki:~/coderepo/tester$ git pull
+Updating 590e0eb..94ad27e
+Fast-forward
+ newfile4 |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+ create mode 100644 newfile4
+john@satsuki:~/coderepo/tester$ ls
+newfile1  newfile2  newfile3  newfile4  test.sh
+john@satsuki:~/coderepo/tester$ cd ..
+\end{code}
+
+Now let us see what happens if we try to update the module.
+
+\begin{code}
+john@satsuki:~/coderepo$ git submodule update
+Submodule path 'tester': checked out '590e0eb79bc5ba0bc09f611392e643f676b00a04'
+john@satsuki:~/coderepo$ cd tester
+john@satsuki:~/coderepo/tester$ ls
+newfile1  newfile2  newfile3  test.sh
+john@satsuki:~/coderepo/tester$ 
+\end{code}
+
+Our new changes have disappeared.
+How odd!
+Well actually not really.
+As we stated earlier, when we committed our \texttt{.gitmodules} file along with the \texttt{tester} directory,
+we not only committed the fact that we required a submodule, we also committed the exact point we wanted that submodule to point to.
+If we want to change this, then we must commit that as a change.
+It may seem a little odd that we have to jump through these hoops to get an update to an upstream project, but if you think about it, it actually makes a lot of sense.
+It means that anyone cloning our repository is sure to get a version of the submodule that we have decided is right for the project.
+So keeping this in mind, let us walk through a quick example of how we would finish the job and commit a new version of the submodule.
+
+\begin{code}
+john@satsuki:~/coderepo$ cd tester/
+john@satsuki:~/coderepo/tester$ git pull
+You are not currently on a branch, so I cannot use any
+'branch.<branchname>.merge' in your configuration file.
+Please specify which remote branch you want to use on the command
+line and try again (e.g. 'git pull <repository> <refspec>').
+See git-pull(1) for details.
+john@satsuki:~/coderepo/tester$
+\end{code}
+
+Interesting!
+What has happened here is that by performing the \texttt{git submodule update} command, we effectively asked Git to checkout a commit.
+Remember in the past we talked about detached HEAD?
+This is exactly what Git has done. A submodule spends most of it's life in a detached HEAD state. 
+As we tell Git that we must have the submodule at a specific commit, it means that Git checks out a commit, rather than a branch.
+If you think about it, this makes sense, we do not want the contents of the module \emph{changing}.
+
+So to bring our module up to date, we need to first checkout master.
+Then we can issue our \texttt{git pull}.
+
+\begin{code}
+john@satsuki:~/coderepo/tester$ git checkout master
+Previous HEAD position was 590e0eb... Work on tester nf3
+Switched to branch 'master'
+john@satsuki:~/coderepo/tester$ git pull
+Already up-to-date.
+\end{code}
+
+Oh? Should we not have seen some commits pulled in here?
+Actually, no. We pulled the changes into master earlier, when we ran the \texttt{git pull}.
+When the module reverted to the earlier commit, \textbf{590e0eb}, it did not affect the master branch at all, as we simply checked out a single commit.
+So by swiching to \textbf{master}, we have already altered the contents of the submodule directory, as can be seen below.
+
+\begin{code}
+john@satsuki:~/coderepo/tester$ ls
+newfile1  newfile2  newfile3  newfile4  test.sh
+john@satsuki:~/coderepo/tester$ cd ..
+john@satsuki:~/coderepo$ git status
+# On branch master
+# Changes not staged for commit:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#	modified:   tester (new commits)
+#
+no changes added to commit (use "git add" and/or "git commit -a")
+john@satsuki:~/coderepo$
+\end{code}
+
+All we need to do now is to commit the submodule changes into the repository and check that the update yields the new file.
+
+\begin{code}
+john@satsuki:~/coderepo$ git commit -a -m 'Up revd upstream module'
+[master 022a163] Up revd upstream module
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+john@satsuki:~/coderepo$ git submodule update
+john@satsuki:~/coderepo$ cd tester/
+john@satsuki:~/coderepo/tester$ ls
+newfile1  newfile2  newfile3  newfile4  test.sh
+john@satsuki:~/coderepo/tester$ cd ..
+john@satsuki:~/coderepo$
+\end{code}
+
+As you can see, submodules can be rather useful.
+You can even make changes to the repository in the submodule and commit them locally to perhaps keep changes that you want to make to the submodule.
+Remember though that if you did make changes, and you committed them to the submodule,
+if you then issued a \texttt{git submodule update} without first committing your changes in the superproject, your commit would be lost.
+Of course nothing in Git is ever really lost, but it would be prudent of you to always keep changes you make to submodules in a branch,
+that way they are easy to bring back if you make a mistake like the one described.
+
+With that all said and done, we have finished our tour of the major portions of Git.
+What follows in the next chapter are some other points that are added more for information on what \textbf{can} be done with Git.
+
+\clearpage
+
+\section{Summary - John's Notes}
+\subsection{Commands}
+\begin{itemize}
+\item\texttt{git apply <filename>} - Applies a patch to the working tree
+\item\texttt{git reflog show <branch>} - Show the reflog only for the specified branch
+\item\texttt{git format-patch <ref1>..<ref2>} - Create a set of patches of each commit between two points
+\item\texttt{git am <filename>} - Apply a specific patch containing a \emph{format-patch} file
+\item\texttt{git bisect start} - Begin a bisect session
+\item\texttt{git bisect good <ref>} - Mark a reference as good, during a \texttt{git bisect}
+\item\texttt{git bisect bad <ref>} - Mark a reference as bad, during a \texttt{git bisect}
+\item\texttt{git bisect start <ref\_recent> <ref\_old>} - Start a bisect session between two known points
+\item\texttt{git bisect run <command>} - Start an automated run of the bisect tool
+\item\texttt{git filter-branch --index-filter 'git rm --cached \newline --ignore-unmatch <file>' HEAD} - Rewrites the current branch to remove file
+\item\texttt{git filter-branch --subdirectory-filter <directory>} - Rewrites the current branch to make subdirectory directory the root of the branch
+\item\texttt{git fetch <remote> +<remote\_branch>:<local\_branch>} - Creates a local branch from the remote branch existing in a remote repository
+\item\texttt{git branch -m <old\_branch> <new\_branch>} - Move or rename a branch from old to ne
+\item\texttt{git bundle create <filename> <branch>} - Create a bundle file in filename, containing all the objects and references from branch. 
+\item\texttt{git submodule add <repo> <path>} - Add a submodule at the directory specified by path
+\item\texttt{git submodule init} - Initialise any submodules in the super project
+\item\texttt{git submodule update} - Pull all submodules back to the points that have previously been committed to
+\end{itemize}
+
+\subsection{Terminology}
+\begin{itemize}
+\index{Terminology!Patching}\item\textbf{Patching} - A method of distributing changes from someone elses repository without having a line of communication between the two,
+or without a user having access to commit into the destination repository
+\index{Terminology!Bundle}\item\textbf{Bundle} - A type of archive file that hold objects and commits and can be pulled from
+\index{Terminology!Bisect}\item\textbf{Bisect} - A way of progressively searching through a repository to find where bugs were introduced
+\index{Terminology!Filtering}\item\textbf{Filtering} - Takes a branch and rewrites it according to a set of rules
+\index{Terminology!Submodule}\item\textbf{Submodule} - Incorporating a remotely reachable project as a subdirectory of a superproject
+\index{Terminology!Superproject}\item\textbf{Superproject} - A Git repository containing one or more submodules
+\end{itemize}

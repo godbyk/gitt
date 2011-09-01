@@ -1,0 +1,116 @@
+% afterhours8.tex - Afer Hours Week 8
+\chapter{After Hours Week 8}
+\section{``Fishing for beginners''}
+\subsection{Hooking your scripts up}
+So we come to the last After Hours section of the book and this time we are going to take a look at hook scripts.
+Hook scripts are tiny pieces of code that you are allowed to have executed at certain points during Git's processes which can affect the outcome of those same processes.
+Imagine for example that whenever you committed to a repository you wanted an email to be sent to the project manager.
+That is a job for a hook script.
+
+The are a fairly large number of hook points available.
+They are called hooks because it allows you to hook something else into the Git process.
+Below is a list of a few of the available hook points along with a very brief description of when they are triggered and how they can affect the process.
+For a full list, you should check out the manual for githooks.
+
+\begin{itemize}
+\item\textbf{applypatch-msg} - Invoked by \texttt{git am}, it is provided with the name of the proposed commit message for the patch and allows for sanitisation.
+Exiting with a non-zero status will cause \texttt{git am} to abort the patch.
+Will run the \textbf{commit-msg} hook if enabled.
+\item\textbf{pre-applypatch} - Invoked by \texttt{git am}, it runs immediately after the patch is applied, but before a commit is made.
+In this way, checks can be made to the working tree before committing.
+Exiting with non-zero status aborts the commit.
+Will run the \textbf{pre-commit} hook if enabled.
+\item\textbf{post-applypatch} - Invoked by \texttt{git am}, it runs after the patch is applied and the commit is made.
+It does not affect the flow of \texttt{git am} and as such is useful for actions such as notifications.
+\item\textbf{pre-commit} - This hook is invoked by \texttt{git commit} and can be bypassed with the \texttt{--no-verify} option.
+Exiting with non-zero status aborts the commit.
+\item\textbf{prepare-commit-msg} - This hook is invoked by \texttt{git commit} and is run immediately after the commit message has been prepared, but before the message editor has been loaded.
+It takes three parameters, the file containing the log message, the source of the commit message and an SHA hash.
+Exiting with non-zero status aborts the commit.
+It should not be used to replace \textbf{pre-commit}.
+\item\textbf{commit-msg} - This hook is invoked by \texttt{git commit} and can be bypassed with the \texttt{--no-verify} option.
+The hook is used to normalise messages in place before commit.
+Exiting with non-zero status aborts the commit.
+\item\textbf{post-commit} - Invoked by \texttt{git commit}, it runs immediately after a commit is made.
+It can not affect the flow of \texttt{git commit} and as such is useful for actions such as notifications.
+\item\textbf{pre-rebase} - Invoked by \texttt{git rebase}, it is useful for preventing a branch from being rebased.
+\item\textbf{post-checkout} - Invoked by \texttt{git checkout} after it has updated the working tree.
+The hook is given the ref of the previous HEAD, the new HEAD and a flag indicating if it was a branch or file checkout.
+It is also invoked after \texttt{git clone}, but can be overidden by the use of \texttt{--no-checkout}.
+The script is most useful for performing sanity and validity checks on the working tree post checkout.
+It does not affect the process of \texttt{git clone} or \texttt{git checkout}
+\item\textbf{post-merge} - Invoked by \texttt{git merge} when run as part of a \texttt{git pull}.
+It does not affect the outcome of the merge, but does not get executed if the merge fails due to conflicts.
+\end{itemize}
+
+So we have a large arsenal of hooks that we can employ to assist us in administrating our repository.
+We are going to set up a fairly simple example here of ensuring that we do not delete one of our core files.
+To begin with, let us add a \texttt{corefile} to the repository in a new branch and play a little with a new hook script.
+
+\begin{code}
+john@satsuki:~/coderepo$ git checkout -b hooktest
+Switched to a new branch 'hooktest'
+john@satsuki:~/coderepo$ echo "Very Important File" > corefile
+john@satsuki:~/coderepo$ git add corefile
+john@satsuki:~/coderepo$ git commit -a -m 'Added Core File'
+[hooktest 96fe8b9] Added Core File
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+ create mode 100644 corefile
+john@satsuki:~/coderepo$
+\end{code}
+
+Now let us create a hook script called \texttt{.git/hooks/pre-commit}, with the following code.
+
+\begin{code}
+#!/bin/bash
+
+if [ -e "corefile" ] 
+then
+	echo "File OK"
+	exit 0
+else
+	echo "File Deleted Not Committing"
+	exit 2
+fi
+\end{code}
+
+Now let us see what happens if we make a commit that does not affect the \texttt{corefile}.
+
+\begin{code}
+john@satsuki:~/coderepo$ echo "New Development" >> cont_dev 
+john@satsuki:~/coderepo$ git commit -a -m 'Added a commit'
+File OK
+[hooktest 73656f2] Added a commit
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+john@satsuki:~/coderepo$
+\end{code}
+
+We see the text \texttt{File OK} in the output, which indicates that the commit is allowed to go ahead.
+What happens if we try to remove the core file and commit the result?
+
+\begin{code}
+john@satsuki:~/coderepo$ git rm corefile
+rm 'corefile'
+john@satsuki:~/coderepo$ git commit -a -m 'Removed a corefile'
+File Deleted Not Committing
+john@satsuki:~/coderepo$ 
+\end{code}
+
+We have been prevented from committing because we removed the all important \texttt{corefile}.
+To be able to commit again, we must return the file.
+
+\begin{code}
+john@satsuki:~/coderepo$ git checkout HEAD -- corefile
+john@satsuki:~/coderepo$ ls
+another_file  cont_dev  corefile  tester
+john@satsuki:~/coderepo$ echo "New development" >> cont_dev 
+john@satsuki:~/coderepo$ git commit -a -m 'Some more development'
+File OK
+[hooktest 6786dd5] Some more development
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+john@satsuki:~/coderepo$
+\end{code}
+
+So you see hooks can be really simple, or they can do highly complex things.
+Imagine a hook that would compile the code in the working tree prior to the commit and only allow it to continue if the code compiled cleanly.
+That could be pretty useful in ensuring that there is always good clean buildable code in the repository.
