@@ -24,20 +24,20 @@ web: images html
 # Generate a print version PDF (for lulu.com)
 print:
 	@cd src; \
-	xelatex --output-driver="xdvipdfmx -V 5" -interaction nonstopmode '\def\mediaformat{print}\input{gitt}'; \
-	makeindex gitt; \
-	xelatex --output-driver="xdvipdfmx -V 5" -interaction nonstopmode '\def\mediaformat{print}\input{gitt}'; \
-	xelatex --output-driver="xdvipdfmx -V 5" -interaction nonstopmode '\def\mediaformat{print}\input{gitt}'
+	xelatex --output-driver="xdvipdfmx -V 5" '\def\mediaformat{print}\input{gitt}' && \
+	makeindex gitt && \
+	xelatex --output-driver="xdvipdfmx -V 5" '\def\mediaformat{print}\input{gitt}' && \
+	xelatex --output-driver="xdvipdfmx -V 5" '\def\mediaformat{print}\input{gitt}'
 	@mv src/gitt.pdf "Git in the Trenches - print edition.pdf"
 	$(color_tex) src/gitt.log
 
 # Generate the PDF (on-screen version)
 pdf:
 	@cd src; \
-	xelatex --output-driver="xdvipdfmx -V 5" -interaction nonstopmode '\def\mediaformat{screen}\input{gitt}'; \
-	makeindex gitt; \
-	xelatex --output-driver="xdvipdfmx -V 5" -interaction nonstopmode '\def\mediaformat{screen}\input{gitt}'; \
-	xelatex --output-driver="xdvipdfmx -V 5" -interaction nonstopmode '\def\mediaformat{screen}\input{gitt}'
+	xelatex --output-driver="xdvipdfmx -V 5" '\def\mediaformat{screen}\input{gitt}' && \
+	makeindex gitt && \
+	xelatex --output-driver="xdvipdfmx -V 5" '\def\mediaformat{screen}\input{gitt}' && \
+	xelatex --output-driver="xdvipdfmx -V 5" '\def\mediaformat{screen}\input{gitt}'
 	@mv src/gitt.pdf "Git in the Trenches.pdf"
 	$(color_tex) src/gitt.log
 
