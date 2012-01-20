@@ -9,16 +9,16 @@ We will explain the details a little more further on.
 \index{merging!types}\index{merging!types!resolve}\index{merging!types!recursive}\index{merging!types!octopus}\index{merging!types!ours}\index{merging!types!subtree}
 
 \begin{itemize}
-\item\textbf{resolve} - A two headed merge strategy using a 3-way merge algorithm.
+\item\textbf{Resolve} - A two headed merge strategy using a 3-way merge algorithm.
 This is used by default in Git.
-\item\textbf{recursive} - A two headed merge strategy using a 3-way merge algorithm.
+\item\textbf{Recursive} - A two headed merge strategy using a 3-way merge algorithm.
 This algorithm looks at situations where multiple common ancestors are eligible and creates a merged tree of the common ancestors to be used as a reference.
 Usually, this method has less conflicts and carries with it multiple sub-options.
-\item\textbf{octopus} - This merge strategy can merge in multiple heads.
+\item\textbf{Octopus} - This merge strategy can merge in multiple heads.
 When trying to pull multiple topic branches into a single merge, an \textbf{octopus} is the default method that Git will use.
-\item\textbf{ours} - Another multiple head strategy, which simply ignores all changes from the other branches.
+\item\textbf{Ours} - Another multiple head strategy, which simply ignores all changes from the other branches.
 At first it may sound like a useless idea, but it could be used to keep the history of a branch without actually keeping the branch itself.
-\item\textbf{subtree} - A much more advanced merge strategy based on the \textbf{recursive} which trees are adjusted to result in a better merge.
+\item\textbf{Subtree} - A much more advanced merge strategy based on the \textbf{recursive} which trees are adjusted to result in a better merge.
 \end{itemize}
 
 Now that we are aware of the different options available to us, let us discuss what happens when we actually perform a merge.
@@ -50,12 +50,12 @@ We are attempting to merge in \textbf{zaney} to the \textbf{wonderful} branch.
 We need to find the \textbf{C} in our equation.
 To do this we could pour over Figure 1.
 This should yield the result to be commit \textbf{9710177}.
-Is there are way we can ask Git to do the same thing? The following output introduces a new command that is used to find the \emph{Best Common Ancestor} for a given merge proposal.
+Is there any way we can ask Git to do the same thing? The following output introduces a new command that is used to find the \emph{Best Common Ancestor} for a given merge proposal.
 
 \begin{code}
-john@satsuki:~/coderepo-af4$ git merge-base wonderful zaney
+john@satsuki:~/coderepo$ git merge-base wonderful zaney
 9710177657ae00665ca8f8027b17314346a5b1c4
-john@satsuki:~/coderepo-af4$ git cat-file -p 9710177
+john@satsuki:~/coderepo$ git cat-file -p 9710177
 tree 268f487e5c29a4b01c3a91637bac0024253fb77e
 parent 55fb69f4ad26fdb6b90ac6f43431be40779962dd
 author John Haskins <john.haskins@tamagoyakiinc.koala> 1301613377 +0100
@@ -63,7 +63,7 @@ committer John Haskins <john.haskins@tamagoyakiinc.koala> 1301613377
  +0100
 
 Added another file
-john@satsuki:~/coderepo-af4$
+john@satsuki:~/coderepo$
 \end{code}
 
 In our example, \indexgit{merge-base} uses two parameters to speficy the two heads that we wish to merge.
@@ -104,4 +104,4 @@ john@satsuki:~/coderepo$
 \end{code}
 
 This is just a short introduction to the \texttt{git grep} command.
-If you want to know more, you should spend some time reading the manual.
+If you want to know more you should spend some time reading the manual.

@@ -70,15 +70,23 @@ baseconvert: $(BUILD_DIR) $(BUILD_DIR_IMAGES) htmlimages
 	@python scripts/htmlbuild.py baseconvert
 	@python scripts/htmlbuild.py baseconcat
 	@cp -r site/images $(BUILD_DIR)
+	@cp -r images/source/*.svg $(BUILD_DIR_IMAGES)
 
-epub: baseconvert
-	@ebook-convert build/complete.html build/complete.epub --chapter '//*[name()="h1"]' 
+baseconvert-epub: $(BUILD_DIR) $(BUILD_DIR_IMAGES) htmlimages
+	@python scripts/htmlbuild.py alltex
+	@python scripts/htmlbuild.py baseconvert epub
+	@python scripts/htmlbuild.py baseconcat
+	@cp -r site/images $(BUILD_DIR)
+	@cp -r images/source/*.svg $(BUILD_DIR_IMAGES)
+
+epub: baseconvert-epub
+	@ebook-convert build/complete.html build/complete.epub --chapter '//*[name()="h1"]' --authors 'Peter Savage' --title 'Git In The Trenches' --cover images/source/fcover-epub.png
 
 epub-view: epub
 	@ebook-viewer build/complete.epub
 
 mobi: baseconvert
-	@ebook-convert build/complete.html build/complete.mobi --chapter '//*[name()="h1"]' 
+	@ebook-convert build/complete.html build/complete.mobi --chapter '//*[name()="h1"]' --authors 'Peter Savage' --title 'Git In The Trenches' --cover images/source/fcover-epub.png
 
 mobi-view: mobi
 	@ebook-viewer build/complete.mobi
@@ -90,6 +98,8 @@ html: $(SITE_IMAGES_DIR)
 	@cp html/index.html $(SITE_DIR)/
 	@python scripts/htmlbuild.py simple index
 	@python scripts/htmlbuild.py simple feedback
+	@python scripts/htmlbuild.py simple download
+	@python scripts/htmlbuild.py simple legal
 	@python scripts/htmlbuild.py alltex
 	@python scripts/htmlbuild.py allchaps
 	@python scripts/htmlbuild.py allafterhours
@@ -103,8 +113,9 @@ IMAGES=$(shell ls images/source/*.svg)
 SITEIMAGES=$(shell for IMAGE in $(IMAGES); do echo "$$(basename $${IMAGE} .svg).png"; done)
 
 # Generate PNG file from SVG file
-%.png: images/source/%.svg $(SITE_IMAGES_DIR) $(SITE_CHAP_IMAGES_DIR)
+%.png: images/source/%.svg $(SITE_IMAGES_DIR) $(SITE_CHAP_IMAGES_DIR) $(BUILD_DIR_IMAGES)
 	inkscape -f $< -D -w 400 -e $(SITE_CHAP_IMAGES_DIR)/f-$(shell basename $< .svg).png >/dev/null
+	inkscape -f $< -D -l $(BUILD_DIR_IMAGES)/f-$(shell basename $<)
 
 # Convert all images
 htmlimages: $(SITEIMAGES) $(SITE_CHAP_IMAGES_DIR)
